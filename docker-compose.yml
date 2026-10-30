@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ecdat
+      POSTGRES_PASSWORD: ecdatpassword
+      POSTGRES_DB: ecdat
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://ecdat:ecdatpassword@db:5432/ecdat
+      - REDIS_URL=redis://redis:6379/0
+      - HINDSIGHT_API_KEY=${HINDSIGHT_API_KEY:-}
+      - HINDSIGHT_BASE_URL=${HINDSIGHT_BASE_URL:-https://api.hindsight.vectorize.io}
+      - HINDSIGHT_BANK_ID=${HINDSIGHT_BANK_ID:-encryptplus-agent}
+      - HINDSIGHT_ENABLED=${HINDSIGHT_ENABLED:-true}
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./ecdat.db:/app/ecdat.db
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
